@@ -1,0 +1,9 @@
+loadI 1 => r1
+add r1, r1 => r1
+loadI 2 => r2
+mult r1, r2 => r1
+loadI 3 => r2
+mult r1, r2 => r1
+loadI 4 => r2
+mult r1, r2 => r1
+store r1 => r0

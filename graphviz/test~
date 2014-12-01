@@ -1,0 +1,13 @@
+digraph testcase1
+{
+ 1 [label = "B1"];
+ 2 [label = "B2"];
+ 3 [label = "B3"];
+ 4 [label = "B4"];
+ 5 [label = "B5"];
+ 1 −> 2;
+ 2 −> 3;
+ 2 −> 4;
+ 3 −> 5;
+ 4 −> 5;
+}
