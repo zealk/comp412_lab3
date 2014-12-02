@@ -1,8 +1,13 @@
 package backend;
 
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
+import struct.DGEdge;
 import struct.Instruction;
 import struct.Op_reg;
 import main.Scheduler;
@@ -21,75 +26,89 @@ public class DGBuilder {
 
 	private void buildDG() {
 		List<Instruction> ins = s.insts;
-		Instruction ins_i,ins_j;
-		Op_reg i_defR,j_useR;
+		Instruction ins_i;
+		Op_reg i_defR,i_useR;
+		
+		Map<Integer,Integer> reg_def_idx = new HashMap<Integer, Integer>();
+		Instruction prev_store = null;
+		Instruction prev_output = null;
+		List<Instruction> prev_load_output = new ArrayList<Instruction>();
+		
+		s.ready = new LinkedList<Instruction>();
+		
 		for (int i = 0 ; i < ins.size() ;i ++) {
 			ins_i = ins.get(i);
 			
-
-			for (int j = i + 1 ; j < ins.size(); j++) {
-				ins_j = ins.get(j);
-				
-				//flag for if ins_j is the next first output
-				boolean output_first_output = true;
-				
-				boolean store_first_store = true;
-				boolean store_first_load = true;
-				boolean store_first_output = true;
-				
-				//dependency for value
-				i_defR = ins_i.getDefReg();
-				if (i_defR != null) {				
-					j_useR = ins_j.getUseReg(0);
-					if (j_useR != null && j_useR.equals(i_defR)) {
-						createEdge(ins_j,ins_i);
-					}
-					j_useR = ins_j.getUseReg(1);
-					if (j_useR != null && j_useR.equals(i_defR)) {
-						createEdge(ins_j,ins_i);
-					}
+			//value dependency
+			i_useR = ins_i.getUseReg(0);
+			if (i_useR != null) {
+				Integer def_idx = reg_def_idx.get(i_useR.vr);
+				assert(def_idx != null);
+				createDependentEdge(ins_i,ins.get(def_idx));
+			}
+			i_useR = ins_i.getUseReg(1);
+			if (i_useR != null) {
+				Integer def_idx = reg_def_idx.get(i_useR.vr);
+				assert(def_idx != null);
+				createDependentEdge(ins_i,ins.get(def_idx));
+			}
+			
+			//load store output dependency
+			if (ins_i.operation ==  Instruction.optype.load) {
+				//need an edge to most recent store
+				if (prev_store != null) {
+					createDependentEdge(ins_i,prev_store);
 				}
 				
-				//dependency for load, store, output
-				//for load and output, each store after need an edge
-				if (ins_i.operation == Instruction.optype.load
-						|| ins_i.operation == Instruction.optype.output) {
-					if (ins_j.operation == Instruction.optype.store) {
-						createEdge(ins_j,ins_i);
-					}
+			} else if (ins_i.operation ==  Instruction.optype.output) {
+				//need an edge to most recent store
+				if (prev_store != null) {
+					createDependentEdge(ins_i,prev_store);
 				}
-				
-				//for output, next output need an edge
-				if (output_first_output && ins_i.operation == Instruction.optype.output
-						&& ins_j.operation == Instruction.optype.output) {
-					output_first_output = false;
-					createEdge(ins_j,ins_i);
+				//need an edge to most recent output
+				if (prev_output != null) {
+					createSerializeEdge(ins_i,prev_output);
 				}
-				
-				//for store, next output, next store and next load need an edge
-				if (ins_i.operation == Instruction.optype.store) {
-					if (store_first_store 	&& ins_j.operation == Instruction.optype.store) {
-						store_first_store = false;
-						createEdge(ins_j,ins_i);
-					}
-					
-					if (store_first_load 	&& ins_j.operation == Instruction.optype.load) {
-						store_first_load = false;
-						createEdge(ins_j,ins_i);
-					}
-					
-					if (store_first_output 	&& ins_j.operation == Instruction.optype.output) {
-						store_first_output = false;
-						createEdge(ins_j,ins_i);
-					}
-					
+			} else if (ins_i.operation ==  Instruction.optype.store) {
+				//need an edge to most recent store
+				if (prev_store != null) {
+					createSerializeEdge(ins_i,prev_store);
+				}
+				for (Instruction load_or_output : prev_load_output) {
+					createSerializeEdge(ins_i,load_or_output);
 				}
 			}
 			
-
+			if (ins_i.children != null)
+				ins_i.ready_count = ins_i.children.size();
+			else
+				ins_i.ready_count = 0;
 			
+			if (ins_i.ready_count == 0) {
+				s.ready.add(ins_i);
+			}
+			
+			//Update reg_def_idx
+			i_defR = ins_i.getDefReg();
+			if (i_defR != null) {
+				reg_def_idx.put(i_defR.vr, i);
+			}
+			
+			//Update serializing record
+			if (ins_i.operation ==  Instruction.optype.load) {
+				prev_load_output.add(ins_i);
+				
+			} else if (ins_i.operation ==  Instruction.optype.output) {
+				prev_load_output.add(ins_i);
+				prev_output = ins_i;
+				
+			} else if (ins_i.operation ==  Instruction.optype.store) {
+				prev_store = ins_i;
+				
+			}
 			
 		}
+		 
 	}
 
 	/**
@@ -99,13 +118,21 @@ public class DGBuilder {
 	 * @param parent
 	 * @param child
 	 */
-	private void createEdge(Instruction parent, Instruction child) {
+	private void createEdge(Instruction parent, Instruction child, int len) {
 		if (parent.children == null)
 			parent.DGNode_init();
 		if (child.parents == null)
 			child.DGNode_init();
-		parent.children.add(child);
-		child.parents.add(parent);
+		parent.children.add(new DGEdge(child,len));
+		child.parents.add(new DGEdge(parent,len));
 	}
 
+	private void createDependentEdge(Instruction parent, Instruction child) {
+		createEdge(parent,child,child.latency());
+	}
+	
+	private void createSerializeEdge(Instruction parent, Instruction child) {
+		createEdge(parent,child,1);
+	}
+	
 }

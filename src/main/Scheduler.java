@@ -4,6 +4,8 @@ import java.util.List;
 
 import backend.Allocator;
 import backend.DGBuilder;
+import backend.Sched;
+import struct.DGEdge;
 import struct.Instruction;
 import struct.Op_reg;
 import frontend.Scanner;
@@ -13,14 +15,15 @@ public class Scheduler {
 	private Scanner scanner;
 	private Allocator allocator;
 	private DGBuilder dgbuilder;
+	private Sched sched;
 	public List<Instruction> insts;
 	public int max_sr;
 	public int max_living_vr;
+	public List<Instruction> ready;
 	
 	public String fn;
 	
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
 		Scheduler s = new Scheduler();
 		s.init(args);
 	}
@@ -45,12 +48,17 @@ public class Scheduler {
 		
 		scanner = new Scanner(this,filename);
 		scanner.run();
+
 		allocator = new Allocator(this);
 		allocator.run();
 		//printR(Op_reg.TOSTRING_VR);
+	
 		dgbuilder = new DGBuilder(this);
 		dgbuilder.run();
 		//printGraphvic();
+		
+		sched = new Sched(this);
+		sched.run();
 	}
 	
 	public void printR(int reg_type) {
@@ -69,8 +77,8 @@ public class Scheduler {
 		}
 		for (int i = 0 ; i < insts.size() ; i ++) {
 			if (insts.get(i).parents != null) {
-				for (Instruction ins_j : insts.get(i).parents) {			
-					int j = insts.indexOf(ins_j);
+				for (DGEdge ins_j_edge : insts.get(i).parents) {			
+					int j = insts.indexOf(ins_j_edge.node);
 					System.out.println("\t" + (j+1) + " -> " + (i+1));
 				}
 			}

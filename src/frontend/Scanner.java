@@ -3,7 +3,7 @@ package frontend;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -62,7 +62,7 @@ public class Scanner {
 	}
 	
 	public void run() {
-		s.insts = new LinkedList<Instruction>();
+		s.insts = new ArrayList<Instruction>();
 		Instruction tmpins = new Instruction();
 		String line;
 		try {

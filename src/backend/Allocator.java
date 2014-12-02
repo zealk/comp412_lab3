@@ -32,33 +32,25 @@ public class Allocator {
 	}
 	
 	public void assign_vr() {
-		s.max_living_vr = 0;
 		int ins_number = s.insts.size();
+		Op_reg tmpReg;
 		for (int i = ins_number - 1 ; i >= 0 ; i--) {
 
-			Op_reg defReg = s.insts.get(i).getDefReg();
-			update(defReg,i);
-			if (defReg != null) {
-				SRToVR[defReg.sr] = -1;
-				LU[defReg.sr] = Integer.MAX_VALUE;
+			tmpReg = s.insts.get(i).getDefReg();
+			update(tmpReg,i);
+			if (tmpReg != null) {
+				SRToVR[tmpReg.sr] = -1;
+				LU[tmpReg.sr] = Integer.MAX_VALUE;
 			}
-			update(s.insts.get(i).getUseReg(0),i);
-			update(s.insts.get(i).getUseReg(1),i);
+			tmpReg = s.insts.get(i).getUseReg(0);
+			update(tmpReg,i);
+			tmpReg = s.insts.get(i).getUseReg(1);
+			update(tmpReg,i);
 			
-			calc_living();
 		}
 		//show();
 	}
 	
-	private void calc_living() {
-		int living = 0;
-		for (int i = 0; i < SRToVR.length ;i++) {
-			if (SRToVR[i] >= 0)
-				living ++;
-		}
-		if (living > s.max_living_vr)
-			s.max_living_vr = living;
-	}
 
 	public boolean valid_op_reg(int ins_idx,int op_idx) {
 		if (s.insts.get(ins_idx).operand[op_idx] != null && 

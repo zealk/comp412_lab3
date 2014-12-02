@@ -60,14 +60,16 @@ public class Instruction  {
 	public optype operation;
 	public Operand operand[];
 	
-	public Set<Instruction> parents;
-	public Set<Instruction> children;
+	public Set<DGEdge> parents;
+	public Set<DGEdge> children;
 	
 	
+	public int ready_count;	//reach 0 if ready, all dependence is done
+	public int cycle;			//reach 0 if done
 	
 	public void DGNode_init() {
-		parents = new HashSet<Instruction>();
-		children = new HashSet<Instruction>();
+		parents = new HashSet<DGEdge>();
+		children = new HashSet<DGEdge>();
 	}
 	
 	
@@ -108,6 +110,22 @@ public class Instruction  {
 		return Instruction.optype.values()[i];
 	}
 	
+	public static int typeLatency(optype type) {
+		switch(type) {
+		case load:
+		case store:
+			return 5;
+		case mult:
+			return 3;
+		default:
+			return 1;
+		}
+	}
+	
+	public int latency() {
+		return typeLatency(operation);
+	}
+	
 	
 	public void init (optype type, int[] oprds) {
 		operation = type;
@@ -144,7 +162,7 @@ public class Instruction  {
 	
 	public String toString() {
 		String ret = operation.toString();
-		ret += "\t";
+		ret += " ";
 		switch (operation) {
 		case load:
 		case loadI:
@@ -222,5 +240,27 @@ public class Instruction  {
 		return ret;
 	}
 
+	/**
+	 * is function unit 0 or 1 capable for this operation?
+	 */
+	public boolean capable(int f) {
+		switch(f) {
+		case 0:
+			switch (operation) {
+			case mult:
+				return false;
+			default:
+				return true;	
+			}
+		default:
+			switch (operation) {
+			case store:
+			case load:
+				return false;
+			default:
+				return true;
+			}
+		}
+	}
 	
 }
