@@ -15,9 +15,11 @@ import main.Scheduler;
 public class DGBuilder {
 
 	public Scheduler s;
+	public Map<Integer,Integer> knownValue;
 	
 	public DGBuilder(Scheduler scheduler) {
 		s = scheduler;
+		knownValue = new HashMap<Integer, Integer>();
 	}
 
 	public void run() {
@@ -33,6 +35,7 @@ public class DGBuilder {
 		Instruction prev_store = null;
 		Instruction prev_output = null;
 		List<Instruction> prev_load_output = new ArrayList<Instruction>();
+		List<Instruction> prev_stores = new ArrayList<Instruction>();
 		
 		s.ready = new LinkedList<Instruction>();
 		
@@ -57,13 +60,26 @@ public class DGBuilder {
 			if (ins_i.operation ==  Instruction.optype.load) {
 				//need an edge to most recent store
 				if (prev_store != null) {
-					createDependentEdge(ins_i,prev_store);
+					//createDependentEdge(ins_i,prev_store);
+					
+					for (int j = prev_stores.size() -1 ; j > -1  ;j--) {
+						if (!Unrelated(ins_i.getUseReg(0).vr, prev_stores.get(j).getUseReg(1).vr)) {
+							createDependentEdge(ins_i,prev_stores.get(j));
+							break;
+						}
+					}
 				}
 				
 			} else if (ins_i.operation ==  Instruction.optype.output) {
 				//need an edge to most recent store
 				if (prev_store != null) {
-					createDependentEdge(ins_i,prev_store);
+					//createDependentEdge(ins_i,prev_store);
+					for (int j = prev_stores.size() -1 ; j > -1 ;j--) {
+						if (!UnrelatedIns(ins_i.getIns().value, prev_stores.get(j).getUseReg(1).vr)) {
+							createDependentEdge(ins_i,prev_stores.get(j));
+							break;
+						}
+					}
 				}
 				//need an edge to most recent output
 				if (prev_output != null) {
@@ -79,6 +95,9 @@ public class DGBuilder {
 				}
 			}
 			
+			updateKnownValue(ins_i);
+			
+			//initialize ready_count
 			if (ins_i.children != null)
 				ins_i.ready_count = ins_i.children.size();
 			else
@@ -94,7 +113,7 @@ public class DGBuilder {
 				reg_def_idx.put(i_defR.vr, i);
 			}
 			
-			//Update serializing record
+			//Update memory accessing
 			if (ins_i.operation ==  Instruction.optype.load) {
 				prev_load_output.add(ins_i);
 				
@@ -104,13 +123,39 @@ public class DGBuilder {
 				
 			} else if (ins_i.operation ==  Instruction.optype.store) {
 				prev_store = ins_i;
-				
+				prev_stores.add(ins_i);
 			}
 			
 		}
 		 
 	}
 
+	private boolean UnrelatedIns(int value, int vr) {
+		Integer value2 = knownValue.get(vr);
+		if (value2 != null && value != value2.intValue())
+			return true;
+		return false;
+	}
+
+	private boolean Unrelated(int vr, int vr2) {
+		Integer value = knownValue.get(vr);
+		Integer value2 = knownValue.get(vr2);
+		if (value != null && value2 != null && !value.equals(value2))
+			return true;
+		return false;
+	}
+
+	private void updateKnownValue(Instruction ins_i) {
+		if (ins_i.operation == Instruction.optype.loadI) {
+			knownValue.put(new Integer(ins_i.getDefReg().vr), new Integer(ins_i.getIns().value));
+		} else {	//load is unpredictable
+			if (ins_i.getDefReg() == null)
+				return;
+			knownValue.remove(ins_i.getDefReg().vr);
+		}
+	}
+
+	
 	/**
 	 * create an edge in the dependent graph
 	 * child <- parent 

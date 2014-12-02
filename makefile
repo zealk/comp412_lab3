@@ -55,6 +55,7 @@ sim:
 	@lab3sim/sim < a.i $(INPUT) -s 0 | tr '\n' ' '
 	@echo "\n"
 	@rm -f a.i
+
 profile:
 	@echo "Profiling timing/T$(RUN_ARGS)k.i"
 	@python -m cProfile -s 'tottime' source/iloc_instruction_scheduler.py timing/T$(RUN_ARGS)k.i

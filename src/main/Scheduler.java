@@ -35,6 +35,12 @@ public class Scheduler {
 	}
 	
 	private void init(String[] args) {
+		
+		if (args.length != 1) {
+			help();
+			return;
+		}
+		
 		for (String arg:args) {
 			if (arg.equals("-h")) {
 				help();
