@@ -81,6 +81,8 @@ public class Sched {
 	
 	private void removeSerialize(Instruction assigned) {
 		Instruction parent;
+		if (assigned.parents == null)
+			return;
 		for (DGEdge parent_edge : assigned.parents) {
 			if (parent_edge.len == 1) {		
 				parent = parent_edge.node;
@@ -117,6 +119,8 @@ public class Sched {
 	}
 
 	private void release(Instruction ins) {
+		if (ins.parents == null)
+			return;
 		Instruction parent;
 		for (DGEdge parent_edge : ins.parents) {
 			if (parent_edge.len > 1) {		

@@ -37,17 +37,17 @@ endif
 all:
 	@sh test_all.sh 
 run:
-	@schedule $(RUN_ARGS)
+	@./schedule $(RUN_ARGS)
 INPUT = $(shell cat $(RUN_ARGS) | egrep INPUT | awk '{for(i = 3; i <= NF; i++){printf "%s ",$$i}}')
 OUTPUT = $(shell cat $(RUN_ARGS) | egrep OUTPUT | awk '{for(i = 2; i <= NF; i++){printf "%s ",$$i}}')
 
 trace:
-	@schedule $(RUN_ARGS) > a.i
+	@./schedule $(RUN_ARGS) > a.i
 	lab3sim/sim < a.i -t -s 1
 	@rm -f a.i
 
 sim:
-	@schedule $(RUN_ARGS) > a.i
+	@./schedule $(RUN_ARGS) > a.i
 	@echo "The origin result" 
 	@echo $(OUTPUT)
 	@lab3sim/sim < $(RUN_ARGS) $(INPUT) | tr '\n' ' '
